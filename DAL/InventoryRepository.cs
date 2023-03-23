@@ -1,107 +1,79 @@
-﻿using System.ComponentModel;
-using System.Data;
-using System.Data.Common;
-using System.Threading.Channels;
-using BLL;
-using Microsoft.VisualBasic.CompilerServices;
+﻿using System.Data;
+using BLL.Entities;
+using BLL.Repositories;
+using DAL.Utility;
 using MySql.Data.MySqlClient;
-using Mysqlx.Crud;
 
 namespace DAL;
 
-public class InventoryRepository
+public class InventoryRepository : IInventoryRepository
 {
-    public async Task<InventoryEntity?> GetInventoryById(int id)
+    public InventoryEntity GetInventoryById(int id)
     {
+        InventoryEntity inventory = new()
+        {
+            Id = id
+        };
         try
         {
-            await using MySqlConnection connection = new("Server=localhost;Database=legoapp;User=root;Password=root");
+            using MySqlConnection connection = MySqlUtility.OpenConnection();
+            using MySqlCommand? command = connection.CreateCommand();
+            command.CommandText = "SELECT amount_of_sets, inventory_id, lego_set.* FROM inventory_lego_set INNER JOIN lego_set ON inventory_lego_set.lego_set_id = lego_set.id WHERE inventory_id=@inventoryId";
+            command.Parameters.AddWithValue("@inventoryId", id);
 
-            await connection.OpenAsync();
-            InventoryEntity inventory = new()
+            using MySqlDataReader? reader = command.ExecuteReader();
+
+            if (!reader.HasRows)
             {
-                Id = id
-            };
+                return inventory;
+            }
 
-            var setIds = new List<int>();
+            while (reader.Read())
             {
-                await using MySqlCommand command = connection.CreateCommand();
-
-                command.CommandText = $"SELECT * FROM inventory_lego_set WHERE inventory_id = @inventoryId";
-                command.Parameters.AddWithValue("@inventoryId", inventory.Id);
-                await using DbDataReader reader = await command.ExecuteReaderAsync();
+                int amount = reader.GetInt32("amount_of_sets");
+                int setId = reader.GetInt32("id");
+                string name = reader.GetString("name");
+                
+                inventory.LegoSets.Add(new InventoryLegoSetEntity
+                {
+                    Amount = amount,
+                    LegoSetId = setId,
+                    Name = name
+                });
+            }
             
-                if (!reader.HasRows) return inventory;
-                while (await reader.ReadAsync())
-                {
-                    setIds.Add(reader.GetInt32("lego_set_id"));
-                }
-            }
-            {
-                foreach (var setId in setIds)
-                {
-                    await using MySqlCommand command = connection.CreateCommand();
-
-                    command.CommandText = $"SELECT * FROM lego_set WHERE id = @id";
-                    command.Parameters.AddWithValue("@id", setId);
-                    await using DbDataReader reader = await command.ExecuteReaderAsync();
-                    
-                    if (!reader.HasRows) continue;
-                    await reader.ReadAsync();
-                    
-                    LegoSetEntity set = new ()
-                    {
-                        Id = setId,
-                        HeightInCm = reader.GetFloat("height_in_cm"),
-                        LengthInCm = reader.GetFloat("length_in_cm"),
-                        WidthInCm = reader.GetFloat("width_in_cm"),
-                        Name = reader.GetString("name"),
-                        Price = !await reader.IsDBNullAsync("price") ? reader.GetDecimal("price") : null,
-                        Retired = reader.GetBoolean("retired"),
-                        ThemeId = !await reader.IsDBNullAsync("theme_id") ? reader.GetInt32("theme_id") : null,
-                        TotalPieces = reader.GetInt32("total_pieces")
-                    };
-                    inventory.LegoSets.Add(set);
-                }
-            }
-            {
-                IEnumerable<LegoSetEntity> setsWithThemes = inventory.LegoSets.Where(legoSet => legoSet.ThemeId!=null);
-                IEnumerable<int> themeIds = setsWithThemes.Select(legoSet => legoSet.ThemeId!.Value).Distinct();
-
-                foreach (var themeId in themeIds)
-                {
-                    await using MySqlCommand command = connection.CreateCommand();
-
-                    command.CommandText = $"SELECT * FROM lego_theme WHERE id = @id";
-                    command.Parameters.AddWithValue("@id", themeId);
-                    await using DbDataReader reader = await command.ExecuteReaderAsync();
-                    
-                    if (!reader.HasRows) continue;
-                    await reader.ReadAsync();
-                    
-                    LegoThemeEntity theme = new ()
-                    {
-                        Id = themeId,
-                        Name = reader.GetString("name"),
-                        Retired = reader.GetBoolean("retired"),
-                    };
-                    
-                    foreach (LegoSetEntity set in setsWithThemes.Where(legoSet => legoSet.ThemeId == themeId))
-                    {
-                        set.Theme = theme;
-                    }
-                }
-            }
             return inventory;
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
-            return null;
+            throw;
         }
     }
 
-    public void UpdateInventory(int legoSetId, int inventoryId)
+    public InventoryEntity? AddToInventoryById(int legoSetId, int amountOfSets = 1, int? id = null)
     {
+        using MySqlConnection connection = MySqlUtility.OpenConnection();
+        using MySqlCommand? command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM inventory_lego_set WHERE lego_set_id = @legoSetId";
+        if ((int) command.ExecuteScalar() == 1)
+        {
+            using MySqlCommand? updateCommand = connection.CreateCommand();
+            updateCommand.CommandText = "UPDATE";
+        }
+        else
+        {
+            
+        }
+
+        return null;
     }
 }
+
+
+
+
+    
+        
+
+

@@ -1,7 +1,11 @@
+using BLL.Repositories;
+using DAL;
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 
 WebApplication app = builder.Build();
 

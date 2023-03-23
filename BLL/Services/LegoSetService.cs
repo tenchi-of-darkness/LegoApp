@@ -1,4 +1,4 @@
-﻿namespace BLL;
+﻿namespace BLL.Services;
 
 public class LegoSetService
 {

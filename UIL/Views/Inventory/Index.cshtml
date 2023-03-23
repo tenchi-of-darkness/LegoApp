@@ -1,0 +1,16 @@
+﻿@model BLL.Entities.InventoryEntity
+@{
+    ViewData["Title"] = "InventoryPage";
+}
+
+<div class="text-center">
+    <h1 class="display-4">INVENTORY @Model.Id</h1>
+    @foreach (var item in Model.LegoSets)
+    {
+        <div style="padding: 10px;">
+            <div>@item.Name</div>
+            <div>@item.Amount</div>
+            <div>@item.LegoSetId</div>
+        </div>
+    }
+</div>
